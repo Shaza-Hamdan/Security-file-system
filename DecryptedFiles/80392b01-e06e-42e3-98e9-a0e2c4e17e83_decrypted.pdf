@@ -1,0 +1,201 @@
+#include <stdio.h>
+#include <string.h>
+#include <math.h>
+#include <stdlib.h>
+
+// Структура статуса робота
+typedef struct {
+    float x, y;           // Позиция в метрах
+    float heading;        // Heading в радианах
+    float speed;          // Текущая скорость m/s
+    int battery_level;    // Процент заряда батареи
+} robot_state_t;
+
+// Структура данных датчика
+typedef struct {
+    float lidar_distance;     // Расстояние до ближайшего препятствия
+    float imu_heading;        // IMU heading reading
+    int ultrasonic[4]
+} sensor_data_t;
+
+// Параметры навигации
+typedef struct {
+    float target_x, target_y;
+    float max_speed;
+    float safe_distance;
+    int emergency_stop;
+} nav_params_t;
+
+// ❌ VULNERABLE: Buffer overflow in sensor processing 
+void process_sensor_data(char* sensor_input) {
+    char buffer[20];
+   snprintf(buffer, sizeof buffer, "%s", sensor_input);
+    printf("Processed: %s\n", buffer);
+}
+
+// ❌ VULNERABLE: Potential null pointer dereference
+float calculate_distance(robot_state_t* robot, float target_x, float target_y) {
+    if (robot == NULL) {
+        return -1.0f; // Should check before dereference
+    }
+    
+    float dx = target_x - robot->x;
+    float dy = target_y - robot->y;
+    return sqrtf(dx*dx + dy*dy);
+}
+
+// ❌ VULNERABLE: Integer overflow in battery calculation
+int calculate_power_usage(int current, int additional) {
+    return current + additional; // CWE-190: Integer overflow possible
+}
+
+// функция навигации
+int should_stop_for_obstacle(sensor_data_t* sensors, float safe_distance) {
+    if (sensors == NULL) return 1;
+    
+    for (int i = 0; i < 4; i++) {
+        if (sensors->ultrasonic[i] < safe_distance * 100) { // Convert to cm
+            return 1; // Stop required
+        }
+    }
+    return 0; // No stop needed
+}
+
+// ❌ VULNERABLE: Memory leak in path planning
+float* plan_route(robot_state_t* start, nav_params_t* target) {
+    float* route = malloc(10 * sizeof(float)); // Allocate memory
+    if (route == NULL) return NULL;
+    
+    // Simple straight-line path calculation
+    for (int i = 0; i < 10; i++) {
+        float t = i / 9.0f;
+        route[i] = start->x + t * (target->target_x - start->x);
+        // Forgot to free this memory - CWE-401
+    }
+    return route;
+}
+
+// ✅ GOOD: Safe speed calculation
+float calculate_safe_speed(float distance_to_target, float max_speed) {
+    if (distance_to_target < 0) return 0.0f;
+    
+    // Reduce speed when close to target
+    if (distance_to_target < 2.0f) {
+        return max_speed * 0.3f;
+    } else if (distance_to_target < 5.0f) {
+        return max_speed * 0.6f;
+    }
+    return max_speed;
+}
+
+// ❌ VULNERABLE: Uninitialized variable usage
+float calculate_turn_angle(robot_state_t* robot, nav_params_t* target) {
+    float desired_heading; // CWE-457: Uninitialized variable
+    
+    if (robot && target) {
+        desired_heading = atan2f(target->target_y - robot->y, 
+                                target->target_x - robot->x);
+    }
+    
+    return desired_heading - robot->heading; // Using uninitialized if check fails
+}
+
+// Main navigation function
+void navigate_robot(robot_state_t* robot, sensor_data_t* sensors, nav_params_t* params) {
+    if (robot == NULL || sensors == NULL || params == NULL) {
+        return;
+    }
+    
+    // Check emergency conditions
+    if (params->emergency_stop || robot->battery_level < 10) {
+        robot->speed = 0.0f;
+        return;
+    }
+    
+    // Process sensor data (vulnerable function) "simulates reading and showing row sensor data"
+    char sensor_string[] = "Lidar:5.2,IMU:1.57,USS:30,25,40,35";
+    process_sensor_data(sensor_string);
+    
+    // Calculate distance to target
+    float distance = calculate_distance(robot, params->target_x, params->target_y);
+    
+    // Check for obstacles
+    if (should_stop_for_obstacle(sensors, params->safe_distance)) {
+        robot->speed = 0.0f;
+        printf("Emergency stop: obstacle detected!\n");
+        return;
+    }
+    
+    // Calculate safe speed
+    robot->speed = calculate_safe_speed(distance, params->max_speed);
+    
+    // Calculate turn angle (vulnerable function)
+    float turn_angle = calculate_turn_angle(robot, params);
+    
+    // Update position (simple simulation)
+    robot->x += robot->speed * cosf(robot->heading) * 0.1f; // 100ms time step
+    robot->y += robot->speed * sinf(robot->heading) * 0.1f;
+    robot->heading += turn_angle * 0.1f;
+    
+    // Update battery (vulnerable function)
+    int power_used = calculate_power_usage(robot->battery_level, 1);
+    robot->battery_level = power_used > 100 ? 100 : power_used;
+    
+    printf("Position: (%.2f, %.2f), Speed: %.2f, Battery: %d%%\n", 
+           robot->x, robot->y, robot->speed, robot->battery_level);
+}
+
+//VULNERABLE: Use after free
+void test_use_after_free() {
+    robot_state_t* robot = malloc(sizeof(robot_state_t));
+    if (robot) {
+        robot->x = 0.0f;
+        robot->y = 0.0f;
+        free(robot);
+        printf("Robot X: %.2f\n", robot->x); // CWE-416: Use after free
+    }
+}
+
+int main() {
+    printf("=== Robot Navigation System Test ===\n");
+    
+    // Initialize robot state
+    robot_state_t robot = {0};
+    robot.x = 0.0f;
+    robot.y = 0.0f;
+    robot.heading = 0.0f; //Facing x (east)
+    robot.speed = 0.0f;
+    robot.battery_level = 80;
+    
+    // Initialize sensor data
+    sensor_data_t sensors = {0};
+    sensors.lidar_distance = 5.5f;
+    sensors.imu_heading = 0.0f;
+    sensors.ultrasonic[0] = 200; // Front
+    sensors.ultrasonic[1] = 200; // Left  
+    sensors.ultrasonic[2] = 180; // Right
+    sensors.ultrasonic[3] = 300; // Back
+    
+    // Set navigation parameters
+    nav_params_t params = {0};
+    params.target_x = 10.0f;
+    params.target_y = 5.0f;
+    params.max_speed = 2.0f;
+    params.safe_distance = 1.5f;
+    params.emergency_stop = 0;
+    
+    // Test navigation for a few cycles
+    for (int i = 0; i < 5; i++) {
+        printf("\n--- Cycle %d ---\n", i + 1);
+        navigate_robot(&robot, &sensors, &params);
+        
+        //Update sensor readings for next cycle
+        sensors.lidar_distance -= 0.5f;
+        sensors.ultrasonic[0] -= 20;
+    }
+    
+    // Test vulnerable functions
+
+    printf("\n=== Navigation Test Complete ===\n");
+    return 0;
+}
