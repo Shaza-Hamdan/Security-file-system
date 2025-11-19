@@ -1,6 +1,8 @@
 A backend application built with .NET, Entity Framework, and MySQL that provides secure file handling, strong authentication, and modern cryptographic features.
 The system allows users to register, log in, upload files, encrypt them with AES, sign them using RSA, and verify signatures.
 Features:
+
+
 🔐 Authentication & Authorization:
 
 *User Login using secure hash verification (GOST R 34.11-2012 (Stribog) hashing algorithm and salt).
@@ -42,12 +44,14 @@ Features:
 /Interfaces        → Service interfaces  
 
 🔑 Default Admin User:
+
 When the application starts for the first time, it automatically creates an initial admin account in the database:
 Email: admin@example.com
 Password: adminpassword
 This user has full administrator privileges and can be used to log in immediately after starting the API.
 
 ▶️ How to Run the Project:
+
 Make sure you have the .NET SDK installed.
 Then open the project in VS Code and run: 
 1. dotnet build
