@@ -2,9 +2,9 @@ A backend application built with .NET, Entity Framework, and MySQL that provides
 The system allows users to register, log in, upload files, encrypt them with AES, sign them using RSA, and verify signatures.
 Features:
 🔐 Authentication & Authorization:
-*User Login using secure hash verification (GOST R 34.11-2012 (Stribog) hashing algorithm and salt).
-*Role-based access control (Guest/ User / Admin).
-*JWT token authentication for protected endpoints.
+1.User Login using secure hash verification (GOST R 34.11-2012 (Stribog) hashing algorithm and salt).
+2.Role-based access control (Guest/ User / Admin).
+3.JWT token authentication for protected endpoints.
 
 🔏 AES File Encryption:
 *Encrypts uploaded files (pdfs) using AES-256-CBC
