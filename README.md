@@ -36,3 +36,16 @@ Features:
 /Entity            → Database entities  
 /Interfaces        → Service interfaces  
 
+🔑 Default Admin User:
+When the application starts for the first time, it automatically creates an initial admin account in the database:
+Email: admin@example.com
+Password: adminpassword
+This user has full administrator privileges and can be used to log in immediately after starting the API.
+
+▶️ How to Run the Project:
+Make sure you have the .NET SDK installed.
+Then open the project in VS Code and run: 
+1. dotnet build
+2. dotnet run
+Once the backend starts, you can open the API documentation and test all endpoints using Swagger at:
+http://localhost:5000/swagger  (or the port shown in your terminal)
